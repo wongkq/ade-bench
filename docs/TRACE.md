@@ -216,8 +216,9 @@ so the mock server can route per-request events to the right file.
 ## Hash matching (replay determinism)
 
 Replay determinism rests on a **normalized SHA-256** of the request body.
-The raw body is normalized via `_strip_runtime_noise` to strip fields that
-vary between record and replay even when the agent's intent is identical:
+The raw body is normalized via `_strip_runtime_noise` and a couple of
+pre-processing helpers to strip fields that vary between record and replay
+even when the agent's intent is identical:
 
 | Field | Treatment | Why |
 |---|---|---|
@@ -227,14 +228,39 @@ vary between record and replay even when the agent's intent is identical:
 | `tool_use_id` / `tool_call_id` | replaced with literal `"<normalized-tool-id>"` | Claude CLI generates fresh UUIDs per session, so the recorded `call_…` IDs would never match a fresh session's IDs |
 | `system` blocks with `cc_version=…` | dropped | runtime version banner |
 | `system` blocks that are `<system-reminder>` / `</system-reminder>` | dropped | per-turn dynamic reminders |
+| `text` blocks inside message content that start with `<system-reminder>` / `</system-reminder>` | replaced with `"<stripped-system-reminder-text>"` | Claude SDK re-injects CLAUDE.md as a per-turn user text reminder; the embedded content can drift across sessions (dates, paths, runtime banners) and would otherwise cause every turn 2+ to fail to match |
+| `role: "system"` messages inside `messages[]` | lifted into the top-level `system` array | some Claude SDK builds inject a `role=system` message inside the messages array (e.g. the "Available agent types" reminder). Treat them like part of the system prompt during normalization. |
+| `thinking` content blocks (in `content[]` arrays) | dropped entirely | the mock server's SSE generator skips thinking blocks when replaying, so the agent's reconstructed conversation on replay never sees them. Including them in the hash — even with content collapsed to a placeholder — would still cause a block-count mismatch. Removing them aligns the conversation shape on both sides. |
+| `metadata` | dropped | contains a per-session `user_id` with `device_id` / `account_uuid` that Claude SDK generates fresh on every CLI invocation |
 
-The hash is over `(model, system, tools, messages, max_tokens, temperature)`
+The hash input is `(model, system, tools, messages, max_tokens, temperature)`
 after normalization. This means the 4th replay turn and beyond will still
 match, even though the bash output the agent saw on the original recording
 is different from what bash produces today.
 
 A legacy hash (no normalization, full raw body) is also recorded as
 `request_hash_legacy` and consulted by `--trace-on-mismatch fallback_hash`.
+
+### Why dropping `thinking` blocks (not just collapsing)
+
+`thinking` is an *extended-thinking* feature that wasn't a part of the
+Anthropic public API when this code was first written. The SSE generator
+in `assistant_message_to_sse` (around L289) does:
+
+```python
+elif btype == "thinking":
+    # Skip - thinking blocks are not part of Anthropic public API yet
+    continue
+```
+
+So when the agent calls Claude API on replay turn 2, the recorded assistant
+message had `[thinking, tool_use]` as content blocks, but the replay SSE
+stream only emits `tool_use`. The agent's reconstructed conversation history
+for turn 3 will therefore have `[tool_use]` (no thinking) in the prior
+turn, and a recorded turn-3 request with `[thinking, tool_use]` will not
+match. Collapsing the block's `text` and `signature` fields to placeholders
+doesn't fix this — the block *count* still differs. Removing the entire
+block from both record and replay's hash input makes them align.
 
 ## Converting a JSONL back to a readable transcript
 
@@ -273,6 +299,42 @@ print(f'tool_uses: {sum(sum(1 for c in e[\"message\"][\"content\"] if c.get(\"ty
 head -1 traces/airbnb001.base.1-of-1.jsonl | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['type'])"
 # expect: system
 ```
+
+### Stability check
+
+To confirm a recording truly reproduces deterministically, replay it multiple
+times in a row and compare the `(result, tests, turns)` columns of each
+`results.tsv`:
+
+```bash
+# Record once
+ab run airbnb001 --db duckdb --project-type dbt \
+  --agent claude \
+  --record-trace ./traces \
+  --run-id record
+
+# Replay N times under different run-ids
+for i in 1 2 3 4 5; do
+  ab run airbnb001 --db duckdb --project-type dbt \
+    --agent claude \
+    --replay-trace ./traces/airbnb001.base.1-of-1.jsonl \
+    --run-id "replay-$i" >/dev/null
+done
+
+# All N result+tests+turns triples should be byte-identical.
+awk -F'\t' 'NR>1 {print $2, $6, $7, $14}' \
+  experiments/replay-1__none/results.tsv \
+  experiments/replay-2__none/results.tsv \
+  experiments/replay-3__none/results.tsv \
+  experiments/replay-4__none/results.tsv \
+  experiments/replay-5__none/results.tsv \
+  | md5sum
+```
+
+If the line `airbnb001 pass 11 11 14` repeats five times with the same MD5,
+replay is deterministic for that recording. A typical full-run validation on
+`airbnb001` records ~38s of wall time and replays in ~0.3s — orders of
+magnitude faster than re-running the agent live.
 
 ## Limitations and known caveats
 

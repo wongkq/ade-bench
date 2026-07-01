@@ -77,11 +77,24 @@ def _strip_runtime_noise(value: Any) -> Any:
         recorded IDs won't match replay IDs even when the conversation shape
         is identical.
       - message id / stop_reason in tool_use blocks where redundant
+      - <system-reminder>...</system-reminder> text blocks inside user/assistant
+        message content. Claude Code SDK re-injects CLAUDE.md as a per-turn
+        system-reminder in user message text; the embedded content can drift
+        across sessions (dates, paths, runtime banners) and would otherwise
+        cause the recorded hash to diverge on every turn 2+.
     """
     if isinstance(value, dict):
         cleaned: dict[str, Any] = {}
         # Detect tool_result content-block
         block_type = value.get("type")
+        # DROP entire thinking blocks from the hash input. The mock server's
+        # SSE generator skips thinking blocks when replaying (see
+        # `assistant_message_to_sse`), so the agent's reconstructed conversation
+        # on replay won't have them either. Including them in the hash would
+        # make every recorded turn-2+ request fail to match its replay.
+        if block_type == "thinking":
+            return {"type": "thinking", "thinking": "<stripped-thinking>",
+                    "signature": "<stripped-thinking>"}
         for k, v in value.items():
             if k in ("cache_control", "cache_creation_input_tokens", "cache_read_input_tokens"):
                 continue
@@ -94,10 +107,26 @@ def _strip_runtime_noise(value: Any) -> Any:
                 # (position in messages array, sibling tool names) is preserved.
                 cleaned[k] = "<normalized-tool-id>"
                 continue
+            if k == "text" and isinstance(v, str):
+                stripped = v.strip()
+                if stripped.startswith("<system-reminder>") or stripped.startswith(
+                    "</system-reminder>"
+                ):
+                    cleaned[k] = "<stripped-system-reminder-text>"
+                    continue
             cleaned[k] = _strip_runtime_noise(v)
         return cleaned
     if isinstance(value, list):
-        return [_strip_runtime_noise(v) for v in value]
+        # Drop extended-thinking blocks from any list. Their presence varies
+        # between record and replay (the SSE generator skips them, so replay
+        # never sees them), and even collapsing their content doesn't help —
+        # block count alone would diverge. Removing them entirely aligns the
+        # conversation shape on both sides.
+        return [
+            _strip_runtime_noise(v)
+            for v in value
+            if not (isinstance(v, dict) and v.get("type") == "thinking")
+        ]
     return value
 
 
@@ -120,15 +149,51 @@ def _normalize_system(system: Any) -> Any:
     return cleaned
 
 
+def _extract_system_role_messages(messages: list) -> list:
+    """Pull role=system messages out of the messages array.
+
+    Some Claude SDK builds inject a role=system message inside messages[]
+    (e.g. the "Available agent types" reminder). We treat those as part of
+    the top-level system prompt for normalization purposes.
+    """
+    out_messages: list = []
+    system_blocks: list = []
+    for m in messages:
+        if isinstance(m, dict) and m.get("role") == "system":
+            content = m.get("content")
+            if isinstance(content, str):
+                system_blocks.append({"type": "text", "text": content})
+            elif isinstance(content, list):
+                for b in content:
+                    if isinstance(b, dict):
+                        system_blocks.append(b)
+            continue
+        out_messages.append(m)
+    return out_messages, system_blocks
+
+
 def normalize_request(req: dict) -> dict:
     """Build a hashable canonical view of the request, stripping runtime noise."""
+    # Merge any role=system messages from messages[] into the top-level system
+    # field so they get the same _normalize_system treatment (cc_version,
+    # <system-reminder>, etc.).
+    raw_messages = req.get("messages", [])
+    filtered_messages, system_role_blocks = _extract_system_role_messages(raw_messages)
+    raw_system = req.get("system", [])
+    if isinstance(raw_system, str):
+        raw_system = [{"type": "text", "text": raw_system}]
+    merged_system = list(raw_system) + system_role_blocks
     norm = {
         "model": req.get("model"),
-        "system": _normalize_system(req.get("system", [])),
+        "system": _normalize_system(merged_system),
         "tools": _strip_runtime_noise(req.get("tools", [])),
-        "messages": _strip_runtime_noise(req.get("messages", [])),
+        "messages": _strip_runtime_noise(filtered_messages),
         "max_tokens": req.get("max_tokens"),
         "temperature": req.get("temperature"),
+        # NOTE: deliberately NOT including `metadata`. It contains a per-session
+        # `user_id` with `device_id` / `account_uuid` that Claude SDK generates
+        # fresh on every CLI invocation. Including it would make every replay's
+        # request hash differ from the recording's.
     }
     return norm
 
