@@ -36,6 +36,8 @@ from ade_bench.parsers.base_parser import UnitTestStatus, ParserResult
 from ade_bench.terminal.docker_compose_manager import DockerComposeManager
 from ade_bench.terminal.terminal import Terminal, spin_up_terminal
 from ade_bench.terminal.tmux_session import TmuxSession
+# Note: ade_bench.trace.manager is imported lazily inside _init_trace_manager
+# and _run_trial so non-trace runs do not pay the Flask/requests import cost.
 from ade_bench.utils.dataset import Dataset
 from ade_bench.utils.logger import logger, log_harness_info, rich_logger, initialize_dynamic_logging
 from ade_bench.utils.test_generator import generate_solution_tests
@@ -69,6 +71,10 @@ class Harness:
         keep_alive: bool = False,
         plugin_set_names: list[str] | None = None,
         with_profiling: bool = False,
+        # Trace (record/replay) subsystem — mutually exclusive.
+        record_trace: Path | None = None,
+        replay_trace: Path | None = None,
+        trace_on_mismatch: str = "error",
     ):
         """
         Runs the Terminal-Bench harness.
@@ -98,7 +104,18 @@ class Harness:
             keep_alive: If True, keep containers alive when tasks fail for debugging.
             plugin_set_names: List of skill set names to use. If None, uses defaults.
             with_profiling: If True, will enable the cProfiler.
+            record_trace: If set, enable RECORD mode and write JSONL traces to this directory.
+            replay_trace: If set, enable REPLAY mode and read from this JSONL file.
+            trace_on_mismatch: Policy when replay cannot match a request —
+                "error" | "fallback_seq" | "fallback_hash".
         """
+        # Mutual-exclusion validation up front, before any other work.
+        if record_trace is not None and replay_trace is not None:
+            raise ValueError(
+                "record_trace and replay_trace are mutually exclusive; "
+                "supply at most one."
+            )
+
         self._run_uuid = None
         self._start_time = datetime.now(timezone.utc).isoformat()
 
@@ -133,9 +150,20 @@ class Harness:
         self._n_concurrent_trials = n_concurrent_trials
         self._n_attempts = n_attempts
 
+        # Trace (record/replay) subsystem.
+        self._record_trace = record_trace
+        self._replay_trace = replay_trace
+        self._trace_on_mismatch = trace_on_mismatch
+        self._trace_manager = None
+
         self._init_dataset()
         self._init_plugin_sets()
         self._init_logger()
+
+        # Trace manager is constructed AFTER the logger so its banner can be
+        # logged; logger must exist before _init_trace_manager logs anything.
+        if record_trace is not None or replay_trace is not None:
+            self._init_trace_manager()
 
     @property
     def _run_path(self) -> Path:
@@ -228,6 +256,44 @@ class Harness:
 
         self._logger = logger.getChild(__name__)
         self._file_handler: logging.FileHandler | None = None
+
+    def _init_trace_manager(self) -> None:
+        """Construct the TraceManager from CLI-level flags.
+
+        Validates mutual exclusion and lazily imports the trace package so
+        non-trace runs never pay the import cost.
+        """
+        try:
+            from ade_bench.trace.manager import TraceManager
+            from ade_bench.trace.models import TraceConfig, TraceMode
+        except ImportError as exc:
+            raise RuntimeError(
+                "trace subsystem requires flask + requests. "
+                "Install with `uv pip install -e .`"
+            ) from exc
+
+        if self._record_trace is not None:
+            mode = TraceMode.RECORD
+            cfg = TraceConfig(
+                mode=mode,
+                record_trace_dir=self._record_trace,
+                on_mismatch=self._trace_on_mismatch,
+            )
+        else:
+            assert self._replay_trace is not None
+            mode = TraceMode.REPLAY
+            cfg = TraceConfig(
+                mode=mode,
+                replay_trace_file=self._replay_trace,
+                on_mismatch=self._trace_on_mismatch,
+            )
+
+        self._trace_manager = TraceManager(cfg)
+        self._logger.info(
+            f"Trace subsystem enabled: mode={mode.value} "
+            f"record_dir={self._record_trace} replay_file={self._replay_trace} "
+            f"on_mismatch={self._trace_on_mismatch}"
+        )
 
     def _init_file_logger(self) -> None:
         """Initialize or reinitialize file logging for the current run path."""
@@ -717,6 +783,29 @@ class Harness:
             ),
         )
 
+        # Compute the trace subsystem env injection for this trial (if enabled).
+        # Must be passed to Terminal BEFORE .start() so the docker-compose env
+        # block substitutes T_BENCH_TRACE_* correctly at compose-build time.
+        trace_env: dict[str, str] = {}
+        if self._trace_manager is not None:
+            trace_env = self._trace_manager.inject_env(trial_handler.trial_name)
+            # Populate the trace artifact paths on the result object so the
+            # harness writes them into results.tsv / results.json.
+            try:
+                results.trace_file = str(
+                    self._trace_manager.trace_path_for(trial_handler.trial_name)
+                )
+                # session_id_for is a static method — call through the instance
+                # so we don't need a top-level import of TraceManager.
+                results.trace_session_id = self._trace_manager.session_id_for(
+                    trial_handler.trial_name
+                )
+            except Exception:
+                # Never fail a trial because the trace manager's bookkeeping
+                # couldn't compute a path; record None and let the manager log.
+                results.trace_file = None
+                results.trace_session_id = None
+
         with spin_up_terminal(
             client_container_name=trial_handler.client_container_name,
             client_image_name=trial_handler.client_image_name,
@@ -728,6 +817,7 @@ class Harness:
             cleanup=self._cleanup,
             build_context_dir=trial_handler.input_path,
             keep_alive=self._keep_alive,
+            extra_env=trace_env or None,
         ) as terminal:
             gitignore_path = Path(__file__).parent.parent / "shared" / "defaults" / ".gitignore"
             if gitignore_path.exists():
@@ -1573,9 +1663,19 @@ class Harness:
             profiler.enable()
             start_time = time.perf_counter()
 
-        self._write_run_metadata()
-        results = self._execute_tasks()
-        self._update_metadata_on_end(results=results)
+        # The trace subsystem (mock LLM server) is started lazily on the
+        # first inject_env() call from _run_trial. We just need to make
+        # sure to stop it after the run completes (or fails).
+        try:
+            self._write_run_metadata()
+            results = self._execute_tasks()
+            self._update_metadata_on_end(results=results)
+        finally:
+            if self._trace_manager is not None:
+                try:
+                    self._trace_manager.stop()
+                except Exception as exc:
+                    self._logger.warning(f"Trace manager stop failed: {exc}")
 
         if self._with_profiling:
             profiler.disable()

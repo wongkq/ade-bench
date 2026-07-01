@@ -96,6 +96,9 @@ class TrialResults(BaseModel):
     model_name: str | None = None
     db_type: str | None = None
     project_type: str | None = None
+    # Trace (record/replay) subsystem
+    trace_file: str | None = None
+    trace_session_id: str | None = None
     # Plugin set metadata
     plugin_set_name: str | None = None
     plugin_set_skills: list[str] | None = None

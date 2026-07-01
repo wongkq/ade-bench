@@ -138,6 +138,31 @@ def run(
         "--tasks-dir",
         help="Path to the tasks directory (default: ADE_TASKS_DIR env var or 'tasks')",
     ),
+    record_trace: Optional[Path] = typer.Option(
+        None,
+        "--record-trace",
+        help=(
+            "Enable RECORD mode: capture every Claude CLI request/response to "
+            "<dir>/<trial_name>.jsonl. Mutually exclusive with --replay-trace."
+        ),
+    ),
+    replay_trace: Optional[Path] = typer.Option(
+        None,
+        "--replay-trace",
+        help=(
+            "Enable REPLAY mode: short-circuit Claude CLI traffic against the "
+            "given JSONL trace file. Mutually exclusive with --record-trace."
+        ),
+    ),
+    trace_on_mismatch: str = typer.Option(
+        "error",
+        "--trace-on-mismatch",
+        help=(
+            "REPLAY mode policy when a request_hash has no recording: "
+            "'error' (500), 'fallback_seq' (next sequential), 'fallback_hash' "
+            "(try legacy hash)."
+        ),
+    ),
 ):
     """
     Run ADE-bench with specified tasks and configuration.
@@ -147,6 +172,30 @@ def run(
     """
     # Convert log level string to int
     log_level_int = getattr(logging, log_level.upper(), logging.INFO)
+
+    # --- Trace subsystem mutual exclusion & validation -----------------------
+    if record_trace is not None and replay_trace is not None:
+        typer.echo(
+            "Error: --record-trace and --replay-trace are mutually exclusive.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    valid_mismatch = {"error", "fallback_seq", "fallback_hash"}
+    if trace_on_mismatch not in valid_mismatch:
+        typer.echo(
+            f"Error: --trace-on-mismatch must be one of {sorted(valid_mismatch)}, "
+            f"got {trace_on_mismatch!r}.",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    # Record mode doesn't use --trace-on-mismatch; warn if user supplied it.
+    if record_trace is not None and trace_on_mismatch != "error":
+        typer.echo(
+            f"Note: --trace-on-mismatch={trace_on_mismatch} ignored in record mode "
+            "(only applies to replay).",
+            err=True,
+        )
 
     # Check for common mistakes in task_ids that look like flags
     flag_looking_args = [
@@ -215,6 +264,9 @@ def run(
         keep_alive=persist,
         plugin_set_names=plugin_set.split() if plugin_set else None,
         with_profiling=with_profiling,
+        record_trace=record_trace,
+        replay_trace=replay_trace,
+        trace_on_mismatch=trace_on_mismatch,
     )
 
     results = harness.run()

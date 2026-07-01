@@ -27,6 +27,10 @@ class DockerComposeEnvVars(EnvModel):
     task_logs_path: str | None = None
     repo_root: str | None = None
     cachebust: str | None = None
+    # Trace (record/replay) subsystem — surfaced to the container as
+    # T_BENCH_TRACE_BASE_URL and T_BENCH_TRACE_SESSION_ID via env_model.to_env_dict.
+    trace_base_url: str | None = None
+    trace_session_id: str | None = None
 
 
 class DockerComposeManager:
@@ -70,9 +74,27 @@ class DockerComposeManager:
         self._logs_path = logs_path
         self._build_context_dir = build_context_dir
         self._logger = logger.getChild(__name__)
+        # Extra env vars to surface into the container at compose-build time
+        # (e.g. ANTHROPIC_BASE_URL when trace is enabled). Set via add_env().
+        self._extra_env: dict[str, str] = {}
+
+    def add_env(self, env: dict[str, str]) -> None:
+        """Add extra env vars to be exported into the container at compose-build time.
+
+        These get merged into the host subprocess env (so ${VAR:-} substitution
+        in the YAML templates them into the container), AND inserted into
+        DockerComposeEnvVars as T_BENCH_TRACE_BASE_URL/T_BENCH_TRACE_SESSION_ID
+        when the keys are ADE_TRACE_BASE_URL/ADE_TRACE_SESSION_ID.
+        """
+        self._extra_env.update(env)
 
     def _run_docker_compose_command(self, command: list[str]) -> subprocess.CompletedProcess:
         """Run a docker-compose command with the appropriate environment variables."""
+        # Separate trace-specific keys (need to flow through DockerComposeEnvVars)
+        # from generic extra env keys (need to be in the subprocess env).
+        trace_base_url = self._extra_env.get("ADE_TRACE_BASE_URL")
+        trace_session_id = self._extra_env.get("ADE_TRACE_SESSION_ID")
+
         env = DockerComposeEnvVars(
             task_docker_client_image_name=self._client_image_name,
             task_docker_client_container_name=self._client_container_name,
@@ -87,7 +109,13 @@ class DockerComposeManager:
             ),
             repo_root=str(REPO_ROOT),
             cachebust=str(date.today()),
+            trace_base_url=trace_base_url,
+            trace_session_id=trace_session_id,
         ).to_env_dict(include_os_env=True)
+        # Merge in remaining extra env vars
+        for k, v in self._extra_env.items():
+            if k not in env:
+                env[k] = v
 
         full_command = [
             "docker",

@@ -29,6 +29,9 @@ dependencies = [
     "snowflake-connector-python>=3.0",
     "pyarrow>=10.0",
     "claude-code-transcripts>=0.6",
+    # Trace (record/replay) subsystem
+    "flask>=3.0",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +47,7 @@ dev = [
 wizard = "ade_bench.cli.wizard:main"
 ade-bench = "ade_bench.cli.ab.main:app"
 ade = "ade_bench.cli.ab.main:app"
+ab = "ade_bench.cli.ab.main:app"
 
 [project.urls]
 Source = "https://github.com/dbt-labs/ade-bench"
@@ -59,6 +63,11 @@ packages = ["ade_bench"]
 "shared" = "shared"
 "docker" = "docker"
 "tasks" = "tasks"
+"scripts" = "scripts"
+
+[tool.pytest.ini_options]
+pythonpath = [".", "./scripts"]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100

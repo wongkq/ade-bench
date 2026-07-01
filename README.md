@@ -113,7 +113,36 @@ ade run all --db duckdb --project-type dbt --agent claude
 
 - Use the dbt Fusion engine instead of dbt Core with `--project-type dbt-fusion` ([set up Snowflake](#snowflake-setup) first)
 - Enable skills, MCP servers, or both with the `--plugin-set` flag (see [Plugin Sets](#plugin-sets) section)
+- Record and replay LLM traffic for deterministic, reproducible benchmark runs — see [Trace (record + replay)](#trace-record--replay) below
 - [Contribute additional tasks or datasets](/docs/CONTRIBUTING.md)
+
+---
+
+## Trace (record + replay)
+
+LLM outputs are nondeterministic. To get byte-identical benchmark runs across
+CI runs, A/B comparisons, and harness regression tests, ADE-bench can record
+every Anthropic API call into a JSONL trace file and replay it on subsequent
+runs.
+
+```bash
+# Record
+ab run airbnb001 --db duckdb --project-type dbt \
+  --agent claude --model claude-opus-4-5-20251101 \
+  --record-trace ./traces
+
+# Replay
+ab run airbnb001 --db duckdb --project-type dbt \
+  --agent claude \
+  --replay-trace ./traces/airbnb001.base.1-of-1.jsonl
+```
+
+`--record-trace` and `--replay-trace` are mutually exclusive. The third
+flag `--trace-on-mismatch {error|fallback_seq|fallback_hash}` controls
+replay behavior when a recorded request hash has no match.
+
+See [docs/TRACE.md](/docs/TRACE.md) for the JSONL schema, edge cases,
+troubleshooting, and concurrency limitations.
 
 ---
 

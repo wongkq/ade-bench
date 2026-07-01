@@ -19,6 +19,7 @@ class Terminal:
         no_rebuild: bool = False,
         cleanup: bool = False,
         build_context_dir: Path | None = None,
+        extra_env: dict[str, str] | None = None,
     ):
         self._client_container_name = client_container_name
         self._docker_name_prefix = docker_name_prefix
@@ -40,6 +41,8 @@ class Terminal:
             logs_path=sessions_path,
             build_context_dir=build_context_dir,
         )
+        if extra_env:
+            self._compose_manager.add_env(extra_env)
 
         self.container = None
 
@@ -98,6 +101,14 @@ class Terminal:
             container_filename=container_filename,
         )
 
+    def add_env(self, env: dict[str, str]) -> None:
+        """Proxy to DockerComposeManager.add_env for adding extra env vars
+        that get exported into the container at compose-build time.
+
+        Must be called BEFORE terminal.start().
+        """
+        self._compose_manager.add_env(env)
+
 
 @contextmanager
 def spin_up_terminal(
@@ -111,6 +122,7 @@ def spin_up_terminal(
     cleanup: bool = False,
     build_context_dir: Path | None = None,
     keep_alive: bool = False,
+    extra_env: dict[str, str] | None = None,
 ) -> Generator[Terminal, None, None]:
     terminal = Terminal(
         client_container_name=client_container_name,
@@ -122,6 +134,7 @@ def spin_up_terminal(
         no_rebuild=no_rebuild,
         cleanup=cleanup,
         build_context_dir=build_context_dir,
+        extra_env=extra_env,
     )
 
     try:

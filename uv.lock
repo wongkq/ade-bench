@@ -20,6 +20,7 @@ dependencies = [
     { name = "click" },
     { name = "docker" },
     { name = "duckdb" },
+    { name = "flask" },
     { name = "jinja2" },
     { name = "libtmux" },
     { name = "openai" },
@@ -30,6 +31,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
+    { name = "requests" },
     { name = "rich" },
     { name = "ruamel-yaml" },
     { name = "snowflake-connector-python", version = "3.17.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
@@ -58,6 +60,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1" },
     { name = "docker", specifier = ">=6.0" },
     { name = "duckdb", specifier = ">=0.9" },
+    { name = "flask", specifier = ">=3.0" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "libtmux", specifier = ">=0.23" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0" },
@@ -71,6 +74,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "requests", specifier = ">=2.31" },
     { name = "rich", specifier = ">=13.0" },
     { name = "ruamel-yaml", specifier = ">=0.18.10" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
@@ -178,6 +182,15 @@ wheels = [
 ]
 
 [[package]]
+name = "blinker"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/28/9b3f50ce0e048515135495f198351908d99540d69bfdc8c1d15b73dc55ce/blinker-1.9.0.tar.gz", hash = "sha256:b4ce2265a7abece45e7cc896e98dbebe6cead56bcf805a3d23136d145f5445bf", size = 22460, upload-time = "2024-11-08T17:25:47.436Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/cb/f2ad4230dc2eb1a74edf38f1a38b9b52277f75bef262d8908e60d957e13c/blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc", size = 8458, upload-time = "2024-11-08T17:25:46.184Z" },
+]
+
+[[package]]
 name = "boto3"
 version = "1.38.26"
 source = { registry = "https://pypi.org/simple" }
@@ -222,7 +235,7 @@ resolution-markers = [
     "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'",
 ]
 dependencies = [
-    { name = "pycparser", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
+    { name = "pycparser" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/97/c783634659c2920c3fc70419e3af40972dbaf758daa229a7d6ea6135c90d/cffi-1.17.1.tar.gz", hash = "sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824", size = 516621, upload-time = "2024-09-04T20:45:21.852Z" }
 wheels = [
@@ -285,7 +298,7 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "pycparser", marker = "(python_full_version < '3.12' and implementation_name != 'PyPy') or (implementation_name != 'PyPy' and platform_python_implementation != 'PyPy')" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -597,7 +610,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -611,6 +624,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/b8/00651a0f559862f3bb7d6f7477b192afe3f583cc5e26403b44e59a55ab34/filelock-3.25.2.tar.gz", hash = "sha256:b64ece2b38f4ca29dd3e810287aa8c48182bbecd1ae6e9ae126c9b35f1382694", size = 40480, upload-time = "2026-03-11T20:45:38.487Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/a5/842ae8f0c08b61d6484b52f99a03510a3a72d23141942d216ebe81fefbce/filelock-3.25.2-py3-none-any.whl", hash = "sha256:ca8afb0da15f229774c9ad1b455ed96e85a81373065fb10446672f64444ddf70", size = 26759, upload-time = "2026-03-11T20:45:37.437Z" },
+]
+
+[[package]]
+name = "flask"
+version = "3.1.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "blinker" },
+    { name = "click" },
+    { name = "itsdangerous" },
+    { name = "jinja2" },
+    { name = "markupsafe" },
+    { name = "werkzeug" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/00/35d85dcce6c57fdc871f3867d465d780f302a175ea360f62533f12b27e2b/flask-3.1.3.tar.gz", hash = "sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb", size = 759004, upload-time = "2026-02-19T05:00:57.678Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/9c/34f6962f9b9e9c71f6e5ed806e0d0ff03c9d1b0b2340088a0cf4bce09b18/flask-3.1.3-py3-none-any.whl", hash = "sha256:f4bcbefc124291925f1a26446da31a5178f9483862233b23c0c96a20701f670c", size = 103424, upload-time = "2026-02-19T05:00:56.027Z" },
 ]
 
 [[package]]
@@ -666,6 +696,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
+]
+
+[[package]]
+name = "itsdangerous"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/cb/8ac0172223afbccb63986cc25049b154ecfb5e85932587206f42317be31d/itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173", size = 54410, upload-time = "2024-04-16T21:28:15.614Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/96/92447566d16df59b2a776c0fb82dbc4d9e07cd95062562af01e408583fc4/itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef", size = 16234, upload-time = "2024-04-16T21:28:14.499Z" },
 ]
 
 [[package]]
@@ -1628,24 +1667,24 @@ resolution-markers = [
     "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'",
 ]
 dependencies = [
-    { name = "asn1crypto", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "boto3", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "botocore", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "certifi", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "cffi", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "charset-normalizer", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "cryptography", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "filelock", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "idna", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "packaging", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "platformdirs", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "pyjwt", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "pyopenssl", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "pytz", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "requests", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "sortedcontainers", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "tomlkit", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
-    { name = "typing-extensions", marker = "python_full_version >= '3.12' and platform_python_implementation == 'PyPy'" },
+    { name = "asn1crypto" },
+    { name = "boto3" },
+    { name = "botocore" },
+    { name = "certifi" },
+    { name = "cffi", version = "1.17.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "charset-normalizer" },
+    { name = "cryptography" },
+    { name = "filelock" },
+    { name = "idna" },
+    { name = "packaging" },
+    { name = "platformdirs" },
+    { name = "pyjwt" },
+    { name = "pyopenssl" },
+    { name = "pytz" },
+    { name = "requests" },
+    { name = "sortedcontainers" },
+    { name = "tomlkit" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/02/cc/375e43ee01d44fbeb375673a45e6c0ca20a17540d1618f20ca78977481fd/snowflake_connector_python-3.17.3.tar.gz", hash = "sha256:8d3847a3738702b58f7416a2adf4b43abaaef36403e4be619c5aabd900e03cf7", size = 794925, upload-time = "2025-09-03T10:45:41.146Z" }
 wheels = [
@@ -1682,23 +1721,23 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "asn1crypto", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "boto3", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "botocore", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "certifi", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "charset-normalizer", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "cryptography", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "filelock", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "idna", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "packaging", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "platformdirs", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "pyjwt", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "pyopenssl", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "pytz", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "requests", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "sortedcontainers", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "tomlkit", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.12' or platform_python_implementation != 'PyPy'" },
+    { name = "asn1crypto" },
+    { name = "boto3" },
+    { name = "botocore" },
+    { name = "certifi" },
+    { name = "charset-normalizer" },
+    { name = "cryptography" },
+    { name = "filelock" },
+    { name = "idna" },
+    { name = "packaging" },
+    { name = "platformdirs" },
+    { name = "pyjwt" },
+    { name = "pyopenssl" },
+    { name = "pytz" },
+    { name = "requests" },
+    { name = "sortedcontainers" },
+    { name = "tomlkit" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/20/2f/9b0d1ea2196eeb32e9ac3f9cdf0cfc516ad3788333a75f197c3f55888f70/snowflake_connector_python-4.3.0.tar.gz", hash = "sha256:79f150297b39cfd2481b732554fc4d68b43c83c82eb01e670cc4051cffc089d6", size = 922395, upload-time = "2026-02-12T10:42:31.868Z" }
 wheels = [
@@ -1872,4 +1911,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/c2/62/a7c072fbfefb2980a00f99ca994279cb9ecf310cb2e6b2a4d2a28fe192b3/wcwidth-0.5.3.tar.gz", hash = "sha256:53123b7af053c74e9fe2e92ac810301f6139e64379031f7124574212fb3b4091", size = 157587, upload-time = "2026-01-31T03:52:10.92Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3c/c1/d73f12f8cdb1891334a2ccf7389eed244d3941e74d80dd220badb937f3fb/wcwidth-0.5.3-py3-none-any.whl", hash = "sha256:d584eff31cd4753e1e5ff6c12e1edfdb324c995713f75d26c29807bb84bf649e", size = 92981, upload-time = "2026-01-31T03:52:09.14Z" },
+]
+
+[[package]]
+name = "werkzeug"
+version = "3.1.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markupsafe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/b2/381be8cfdee792dd117872481b6e378f85c957dd7c5bca38897b08f765fd/werkzeug-3.1.8.tar.gz", hash = "sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44", size = 875852, upload-time = "2026-04-02T18:49:14.268Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/8c/2e650f2afeb7ee576912636c23ddb621c91ac6a98e66dc8d29c3c69446e1/werkzeug-3.1.8-py3-none-any.whl", hash = "sha256:63a77fb8892bf28ebc3178683445222aa500e48ebad5ec77b0ad80f8726b1f50", size = 226459, upload-time = "2026-04-02T18:49:12.72Z" },
 ]

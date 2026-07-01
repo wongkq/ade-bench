@@ -8,5 +8,34 @@ services:
     command: [ "sh", "-c", "sleep infinity" ]
     environment:
       - TEST_DIR=${T_BENCH_TEST_DIR}
+      # Forward mock + bash-vcr env so the agent inside the container can
+      # reach the host-side mock server (ANTHROPIC_BASE_URL) and so the
+      # bash-vcr wrapper can find its recording file + fake clock.
+      # ${VAR:-} keeps compose happy when these aren't set (e.g. when
+      # running without the recording harness).
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_BASE_URL=${T_BENCH_TRACE_BASE_URL:-${ANTHROPIC_BASE_URL:-}}
+      - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+      - BASH_VCR_RECORDING=${BASH_VCR_RECORDING:-}
+      - BASH_VCR_FAKETIME=${BASH_VCR_FAKETIME:-}
+      - BASH_VCR_SKIP_HASH=${BASH_VCR_SKIP_HASH:-}
+      # ADE-bench trace (record/replay) subsystem — populated by Harness
+      # when --record-trace or --replay-trace is supplied.
+      - ADE_TRACE_BASE_URL=${T_BENCH_TRACE_BASE_URL:-}
+      - ADE_TRACE_SESSION_ID=${T_BENCH_TRACE_SESSION_ID:-}
     volumes:
       - ${T_BENCH_TASK_LOGS_PATH}:${T_BENCH_CONTAINER_LOGS_PATH}
+    # Lets the in-container Claude CLI reach the host-side mock server
+    # (scripts/mock_anthropic_vcr.py) when ANTHROPIC_BASE_URL points at
+    # http://host.docker.internal:8765. `host-gateway` is Docker Desktop's
+    # built-in alias for the host gateway; on Linux it's expanded by the
+    # docker daemon at container start. If your runtime is podman, use
+    # `host.containers.internal` (default) instead.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+        resources:
+          limits:
+            cpus: '2.0'
+            memory: 4G
