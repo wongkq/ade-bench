@@ -30,6 +30,14 @@ class AgentResult(BaseModel):
     )
     num_turns: int = Field(default=0, description="The number of turns in the conversation.")
     runtime_ms: int = Field(default=0, description="The runtime of the agent in milliseconds.")
+    api_runtime_ms: int = Field(
+        default=0,
+        description="Cumulative time spent in LLM API calls in milliseconds.",
+    )
+    agent_runtime_ms: int = Field(
+        default=0,
+        description="Local (non-API) time in milliseconds (wall - LLM API).",
+    )
     cost_usd: float = Field(default=0.0, description="The cost of the agent execution in USD.")
     model_name: str | None = Field(
         default=None, description="The model name used by the agent, extracted from agent output."

@@ -12,7 +12,9 @@ class ClaudeParser(BaseParser):
         Parse Claude agent response to extract metrics.
 
         Returns a dictionary with the following keys:
-        - runtime_ms: The higher of duration_ms and duration_api_ms
+        - runtime_ms: The higher of duration_ms and duration_api_ms (wall time)
+        - api_runtime_ms: Cumulative time spent in LLM API calls
+        - agent_runtime_ms: Wall time minus API time (local tool / shell work)
         - input_tokens: input_tokens
         - output_tokens: output_tokens
         - cache_tokens: cache_creation_input_tokens + cache_read_input_tokens
@@ -23,6 +25,8 @@ class ClaudeParser(BaseParser):
 
         default_return = {
             "runtime_ms": 0,
+            "api_runtime_ms": 0,
+            "agent_runtime_ms": 0,
             "input_tokens": 0,
             "output_tokens": 0,
             "cache_tokens": 0,
@@ -88,6 +92,8 @@ class ClaudeParser(BaseParser):
         duration_ms = data.get("duration_ms", 0)
         duration_api_ms = data.get("duration_api_ms", 0)
         runtime_ms = max(duration_ms, duration_api_ms)
+        agent_runtime_ms = max(0, duration_ms - duration_api_ms)
+        api_runtime_ms = duration_api_ms
 
         # Extract token usage
         usage = data.get("usage", {})
@@ -119,6 +125,8 @@ class ClaudeParser(BaseParser):
 
         return {
             "runtime_ms": runtime_ms,
+            "api_runtime_ms": api_runtime_ms,
+            "agent_runtime_ms": agent_runtime_ms,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "cache_tokens": cache_tokens,

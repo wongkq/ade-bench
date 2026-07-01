@@ -280,6 +280,8 @@ class AbstractInstalledAgent(BaseAgent, ABC):
             cache_tokens=parsed_metrics["cache_tokens"],
             num_turns=parsed_metrics["num_turns"],
             runtime_ms=parsed_metrics["runtime_ms"],
+            api_runtime_ms=parsed_metrics.get("api_runtime_ms", 0),
+            agent_runtime_ms=parsed_metrics.get("agent_runtime_ms", 0),
             cost_usd=parsed_metrics["cost_usd"],
             model_name=parsed_metrics.get("model_name"),
             failure_mode=failure_mode,
@@ -294,5 +296,7 @@ class AbstractInstalledAgent(BaseAgent, ABC):
             "cache_tokens": 0,
             "num_turns": 0,
             "runtime_ms": 0,
+            "api_runtime_ms": 0,
+            "agent_runtime_ms": 0,
             "cost_usd": 0.0,
         }

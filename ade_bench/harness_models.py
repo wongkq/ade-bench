@@ -88,6 +88,8 @@ class TrialResults(BaseModel):
     cache_tokens: int | None = None
     num_turns: int | None = None
     runtime_ms: int | None = None
+    api_runtime_ms: int | None = None
+    agent_runtime_ms: int | None = None
     cost_usd: float | None = None
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     recording_path: str | None = None

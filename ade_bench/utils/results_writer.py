@@ -91,6 +91,8 @@ def format_trial_result(result: TrialResults) -> Dict[str, any]:
 
     # Calculate derived values
     runtime_seconds = (result.runtime_ms / 1000) if result.runtime_ms else 0
+    api_runtime_seconds = (result.api_runtime_ms / 1000) if result.api_runtime_ms else 0
+    agent_runtime_seconds = (result.agent_runtime_ms / 1000) if result.agent_runtime_ms else 0
 
     return {
         # Raw calculated values
@@ -99,6 +101,10 @@ def format_trial_result(result: TrialResults) -> Dict[str, any]:
         "_passed_percentage": passed_percentage,
         "_runtime_seconds": runtime_seconds,
         "_runtime_ms": result.runtime_ms or 0,
+        "_api_runtime_seconds": api_runtime_seconds,
+        "_api_runtime_ms": result.api_runtime_ms or 0,
+        "_agent_runtime_seconds": agent_runtime_seconds,
+        "_agent_runtime_ms": result.agent_runtime_ms or 0,
         "_cost_usd": result.cost_usd or 0.0,
         "_input_tokens": result.input_tokens or 0,
         "_output_tokens": result.output_tokens or 0,

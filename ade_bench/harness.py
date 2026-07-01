@@ -995,6 +995,8 @@ class Harness:
                 results.cache_tokens = agent_result.cache_tokens
                 results.num_turns = agent_result.num_turns
                 results.runtime_ms = agent_result.runtime_ms
+                results.api_runtime_ms = agent_result.api_runtime_ms
+                results.agent_runtime_ms = agent_result.agent_runtime_ms
                 results.cost_usd = agent_result.cost_usd
                 # Use parsed model name if harness model_name was not explicitly specified
                 if not results.model_name and agent_result.model_name:

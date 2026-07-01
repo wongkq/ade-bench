@@ -18,6 +18,8 @@ def summarize_results(results: BenchmarkResults) -> Dict[str, Any]:
         "Passed",
         "Passed %",
         "Time (s)",
+        "LLM (s)",
+        "Local (s)",
         "Cost",
         "Input Tokens",
         "Output Tokens",
@@ -28,6 +30,8 @@ def summarize_results(results: BenchmarkResults) -> Dict[str, Any]:
     total_tests = 0
     total_tests_passed = 0
     total_runtime = 0
+    total_api_runtime = 0
+    total_agent_runtime = 0
     total_cost = 0.0
     total_input_tokens = 0
     total_output_tokens = 0
@@ -59,6 +63,8 @@ def summarize_results(results: BenchmarkResults) -> Dict[str, Any]:
             total_tests += calc["_tests"]
             total_tests_passed += calc["_tests_passed"]
             total_runtime += calc["_runtime_ms"]
+            total_api_runtime += calc["_api_runtime_ms"]
+            total_agent_runtime += calc["_agent_runtime_ms"]
             total_cost += calc["_cost_usd"]
             total_input_tokens += calc["_input_tokens"]
             total_output_tokens += calc["_output_tokens"]
@@ -95,6 +101,8 @@ def summarize_results(results: BenchmarkResults) -> Dict[str, Any]:
                 "passed": str(calc["_tests_passed"]),
                 "passed_percentage": percentage_str,
                 "time_seconds": f"{calc['_runtime_seconds']:.0f}",
+                "api_seconds": f"{calc['_api_runtime_seconds']:.0f}",
+                "agent_seconds": f"{calc['_agent_runtime_seconds']:.0f}",
                 "cost": cost_str,
                 "input_tokens": input_tokens_str,
                 "output_tokens": output_tokens_str,
@@ -119,6 +127,8 @@ def summarize_results(results: BenchmarkResults) -> Dict[str, Any]:
     non_error_count = resolved_count + failed_count
     success_rate = (resolved_count / non_error_count * 100) if non_error_count > 0 else 0
     total_runtime_seconds = total_runtime / 1000
+    total_api_runtime_seconds = total_api_runtime / 1000
+    total_agent_runtime_seconds = total_agent_runtime / 1000
 
     total_row = {
         "task_id": f"TOTAL (n={len(results.results)})",
@@ -129,6 +139,8 @@ def summarize_results(results: BenchmarkResults) -> Dict[str, Any]:
         "passed": str(total_tests_passed),
         "passed_percentage": f"{total_passed_percentage:.0f}%",
         "time_seconds": f"{total_runtime_seconds:.0f}",
+        "api_seconds": f"{total_api_runtime_seconds:.0f}",
+        "agent_seconds": f"{total_agent_runtime_seconds:.0f}",
         "cost": f"${total_cost:.2f}",
         "input_tokens": f"{total_input_tokens:,}",
         "output_tokens": f"{total_output_tokens:,}",
@@ -176,6 +188,8 @@ def format_summary_table(summary: Dict[str, Any]) -> List[List[str]]:
                 task["passed"],
                 task["passed_percentage"],
                 task["time_seconds"],
+                task["api_seconds"],
+                task["agent_seconds"],
                 task["cost"],
                 task["input_tokens"],
                 task["output_tokens"],
@@ -198,6 +212,8 @@ def format_summary_table(summary: Dict[str, Any]) -> List[List[str]]:
             total_row["passed"],
             total_row["passed_percentage"],
             total_row["time_seconds"],
+            total_row["api_seconds"],
+            total_row["agent_seconds"],
             total_row["cost"],
             total_row["input_tokens"],
             total_row["output_tokens"],
